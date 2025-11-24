@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* custom style เล็กน้อย (ไม่ใส่ก็ได้) */
+html,
+body {
+  height: 100%;
+}
