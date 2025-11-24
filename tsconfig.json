@@ -13,7 +13,8 @@
     "paths": {
       "@/*": ["./src/*"],
       "@/app/*": ["./src/app/*"],
-      "@/utils/*": ["./src/app/utils/*"]
+      "@/utils/*": ["./src/app/utils/*"],
+      "@/lib/*": ["./src/lib/*"]
     },
     "resolveJsonModule": true,
     "isolatedModules": true,
