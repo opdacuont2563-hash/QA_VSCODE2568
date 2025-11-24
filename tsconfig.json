@@ -9,6 +9,12 @@
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/app/*": ["./src/app/*"],
+      "@/utils/*": ["./src/app/utils/*"]
+    },
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",

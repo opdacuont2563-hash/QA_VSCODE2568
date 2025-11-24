@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
-import Swal from "./utils/sweetalert";
+import Swal from "@/app/utils/sweetalert";
 
 /* ----------------------------- CONFIG พื้นฐาน ----------------------------- */
 
