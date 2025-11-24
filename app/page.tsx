@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
+import Swal from "./utils/sweetalert";
 
 /* ----------------------------- CONFIG พื้นฐาน ----------------------------- */
 
@@ -370,6 +371,34 @@ export default function HomePage() {
     setTimeout(() => setAlert(null), 5000);
   }
 
+  function showSweetLoading(message: string) {
+    Swal.fire({
+      title: message,
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+      background: "#f8fafc",
+      customClass: {
+        popup: "rounded-2xl shadow-2xl",
+      },
+    });
+  }
+
+  function showSweetSuccess(message: string) {
+    Swal.fire({
+      icon: "success",
+      title: message,
+      timer: 1800,
+      showConfirmButton: false,
+      background: "#f8fafc",
+      customClass: {
+        popup: "rounded-2xl shadow-2xl",
+      },
+    });
+  }
+
   /* ----------------------------- ฟังก์ชัน Login ---------------------------- */
 
   function handleLogin(e: React.FormEvent) {
@@ -408,6 +437,7 @@ export default function HomePage() {
   async function handleLoadPeriod() {
     if (!currentDept) return;
     setLoading(true);
+    showSweetLoading("กำลังโหลดข้อมูลเดือนนี้...");
     try {
       const params = new URLSearchParams({
         departmentId: currentDept.id,
@@ -419,21 +449,35 @@ export default function HomePage() {
       const json = await res.json();
 
       if (!json.success) {
+        Swal.close();
         showAlert("error", json.message || "โหลดข้อมูลไม่สำเร็จ");
+        Swal.fire({ icon: "error", title: json.message || "โหลดข้อมูลไม่สำเร็จ" });
         return;
       }
+
+      Swal.close();
 
       if (!json.record) {
         setFields(prev => computeFields(prev, fiscalYear, month));
         showAlert("warning", "ยังไม่มีข้อมูลเดือนนี้");
+        Swal.fire({
+          icon: "warning",
+          title: "ยังไม่มีข้อมูลเดือนนี้",
+          timer: 2000,
+          showConfirmButton: false,
+          background: "#fffbeb",
+          customClass: { popup: "rounded-2xl shadow-2xl" }
+        });
       } else {
         const data = (json.record.data || {}) as QAFields;
         setFields(computeFields(data, fiscalYear, json.record.month));
         showAlert("success", "โหลดข้อมูลสำเร็จ");
+        showSweetSuccess("โหลดข้อมูลสำเร็จ");
       }
     } catch (err) {
       console.error(err);
       showAlert("error", "เกิดข้อผิดพลาดในการโหลดข้อมูล");
+      Swal.fire({ icon: "error", title: "เกิดข้อผิดพลาดในการโหลดข้อมูล" });
     } finally {
       setLoading(false);
     }
@@ -441,6 +485,7 @@ export default function HomePage() {
 
   async function handleLoadYear() {
     if (!currentDept) return;
+    showSweetLoading("กำลังอัปเดตสถานะรายปี...");
     try {
       const params = new URLSearchParams({
         departmentId: currentDept.id,
@@ -451,7 +496,9 @@ export default function HomePage() {
       const json = await res.json();
 
       if (!json.success) {
+        Swal.close();
         showAlert("error", json.message || "โหลดข้อมูลรายปีไม่สำเร็จ");
+        Swal.fire({ icon: "error", title: json.message || "โหลดข้อมูลรายปีไม่สำเร็จ" });
         return;
       }
 
@@ -466,7 +513,9 @@ export default function HomePage() {
       setYearData(map);
     } catch (err) {
       console.error(err);
+      Swal.fire({ icon: "error", title: "เกิดข้อผิดพลาดในการโหลดข้อมูลรายปี" });
     }
+    Swal.close();
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -480,6 +529,7 @@ export default function HomePage() {
     setFields(computed);
 
     setLoading(true);
+    showSweetLoading("กำลังบันทึกข้อมูล...");
     try {
       const res = await fetch("/api/qa/save", {
         method: "POST",
@@ -496,15 +546,20 @@ export default function HomePage() {
       const json = await res.json();
 
       if (!json.success) {
+        Swal.close();
         showAlert("error", json.message || "บันทึกข้อมูลไม่สำเร็จ");
+        Swal.fire({ icon: "error", title: json.message || "บันทึกข้อมูลไม่สำเร็จ" });
         return;
       }
 
+      Swal.close();
       showAlert("success", "บันทึกข้อมูลสำเร็จ");
+      showSweetSuccess("บันทึกข้อมูลสำเร็จ");
       handleLoadYear();
     } catch (err) {
       console.error(err);
       showAlert("error", "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+      Swal.fire({ icon: "error", title: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
     } finally {
       setLoading(false);
     }
@@ -883,7 +938,7 @@ export default function HomePage() {
                   </h2>
                   <span className="text-[10px] text-slate-500">ปีงบประมาณ {fiscalYear}</span>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-[11px]">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 text-[11px]">
                   {MONTHS_TH.map(m => {
                     const rec = yearData[m];
                     const hasData = !!rec;
