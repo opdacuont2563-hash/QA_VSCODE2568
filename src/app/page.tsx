@@ -612,7 +612,7 @@ export default function HomePage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-800 via-purple-600 to-indigo-400 flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-lg">
-          <div className="relative bg-white/90 backdrop-blur rounded-3xl shadow-2xl overflow-hidden">
+          <div className="relative bg-white/90 backdrop-blur rounded-3xl shadow-2xl overflow-visible">
             <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white text-3xl shadow-lg">
               🏥
             </div>
