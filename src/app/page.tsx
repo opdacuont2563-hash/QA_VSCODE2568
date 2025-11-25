@@ -58,6 +58,16 @@ const FISCAL_YEARS = ["2568", "2569", "2570", "2571", "2572"];
 
 type QAFields = Record<string, string>;
 
+type QARecordView = {
+  id: string;
+  departmentId: string;
+  departmentName: string;
+  fiscalYear: string;
+  month: string;
+  data: QAFields;
+  updatedAt: string;
+};
+
 const COMPUTED_FIELDS = new Set([
   "pressureUlcerRate",
   "readmissionRate",
@@ -345,6 +355,9 @@ export default function HomePage() {
     [month: string]: { id: string; updatedAt: string } | undefined;
   }>({});
 
+  const [yearRecords, setYearRecords] = useState<QARecordView[]>([]);
+  const [tableRecord, setTableRecord] = useState<QARecordView | null>(null);
+
   const [activeTab, setActiveTab] = useState<"form" | "table">("form");
 
   const isLoggedIn = !!currentDept && role === "user";
@@ -365,6 +378,38 @@ export default function HomePage() {
     () => DEPARTMENTS.find(d => d.id === selectedDeptId) || null,
     [selectedDeptId]
   );
+
+  const analytics = useMemo(() => {
+    if (!yearRecords.length) {
+      return {
+        monthsFilled: 0,
+        averageProductivity: "0.00%",
+        averageLOS: "0.00",
+        totalCPRSuccess: 0,
+        pressureUlcerRateAvg: "0.00",
+      };
+    }
+
+    const parsePercent = (value?: string) => {
+      if (!value) return 0;
+      return parseFloat(value.replace("%", "")) || 0;
+    };
+
+    const avg = (values: number[]) => (values.length ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2) : "0.00");
+
+    const productivityVals = yearRecords.map(r => parsePercent(r.data.productivityValue));
+    const losVals = yearRecords.map(r => parseFloat(r.data.averageLOS || "0"));
+    const ulcerVals = yearRecords.map(r => parseFloat(r.data.pressureUlcerRate || "0"));
+    const totalCPR = yearRecords.reduce((sum, r) => sum + (parseFloat(r.data.s7_3 || "0") || 0), 0);
+
+    return {
+      monthsFilled: yearRecords.length,
+      averageProductivity: `${avg(productivityVals)}%`,
+      averageLOS: avg(losVals),
+      totalCPRSuccess: totalCPR,
+      pressureUlcerRateAvg: avg(ulcerVals),
+    };
+  }, [yearRecords]);
 
   function showAlert(type: "success" | "error" | "warning", message: string) {
     setAlert({ type, message });
@@ -483,6 +528,41 @@ export default function HomePage() {
     }
   }
 
+  async function handleLoadTableRecord() {
+    if (!currentDept) return;
+    setLoading(true);
+    showSweetLoading("กำลังโหลดข้อมูลแสดงผล...");
+    try {
+      const params = new URLSearchParams({
+        departmentId: currentDept.id,
+        fiscalYear,
+        month
+      }).toString();
+
+      const res = await fetch(`/api/qa/by-period?${params}`);
+      const json = await res.json();
+
+      Swal.close();
+
+      if (!json.success || !json.record) {
+        setTableRecord(null);
+        showAlert("warning", json.message || "ไม่พบข้อมูลเดือนนี้");
+        Swal.fire({ icon: "warning", title: json.message || "ไม่พบข้อมูลเดือนนี้" });
+        return;
+      }
+
+      const computed = computeFields(json.record.data || {}, fiscalYear, json.record.month) as QAFields;
+      setTableRecord({ ...json.record, data: computed });
+      showSweetSuccess("โหลดข้อมูลแสดงผลสำเร็จ");
+    } catch (error) {
+      console.error(error);
+      showAlert("error", "เกิดข้อผิดพลาดในการโหลดข้อมูลแสดงผล");
+      Swal.fire({ icon: "error", title: "เกิดข้อผิดพลาดในการโหลดข้อมูลแสดงผล" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleLoadYear() {
     if (!currentDept) return;
     showSweetLoading("กำลังอัปเดตสถานะรายปี...");
@@ -511,6 +591,8 @@ export default function HomePage() {
         }
       }
       setYearData(map);
+      const records = (json.records as QARecordView[] | undefined) ?? [];
+      setYearRecords(records.map(rec => ({ ...rec, data: computeFields(rec.data, rec.fiscalYear, rec.month) })));
     } catch (err) {
       console.error(err);
       Swal.fire({ icon: "error", title: "เกิดข้อผิดพลาดในการโหลดข้อมูลรายปี" });
@@ -565,6 +647,69 @@ export default function HomePage() {
     }
   }
 
+  function handleEditFromTable() {
+    if (!tableRecord) return;
+    setMonth(tableRecord.month);
+    setFiscalYear(tableRecord.fiscalYear);
+    setFields(computeFields(tableRecord.data, tableRecord.fiscalYear, tableRecord.month));
+    setActiveTab("form");
+    showAlert("success", "โหลดข้อมูลเข้าสู่โหมดแก้ไขแล้ว");
+  }
+
+  async function handleDeleteRecord() {
+    if (!currentDept || !tableRecord) return;
+
+    const confirm = await Swal.fire({
+      icon: "warning",
+      title: "ยืนยันการลบข้อมูล",
+      text: `ต้องการลบข้อมูลเดือน ${tableRecord.month} ปี ${tableRecord.fiscalYear} หรือไม่?`,
+      showCancelButton: true,
+      confirmButtonText: "ลบข้อมูล",
+      cancelButtonText: "ยกเลิก",
+      confirmButtonColor: "#ef4444",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setLoading(true);
+    showSweetLoading("กำลังลบข้อมูล...");
+    try {
+      const res = await fetch("/api/qa/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          departmentId: currentDept.id,
+          fiscalYear: tableRecord.fiscalYear,
+          month: tableRecord.month,
+        })
+      });
+
+      const json = await res.json();
+      Swal.close();
+
+      if (!json.success) {
+        showAlert("error", json.message || "ลบข้อมูลไม่สำเร็จ");
+        Swal.fire({ icon: "error", title: json.message || "ลบข้อมูลไม่สำเร็จ" });
+        return;
+      }
+
+      showSweetSuccess("ลบข้อมูลสำเร็จ");
+      setTableRecord(null);
+      setYearRecords(prev => prev.filter(r => !(r.month === tableRecord.month && r.fiscalYear === tableRecord.fiscalYear)));
+      setYearData(prev => {
+        const next = { ...prev };
+        delete next[tableRecord.month];
+        return next;
+      });
+    } catch (error) {
+      console.error(error);
+      showAlert("error", "เกิดข้อผิดพลาดในการลบข้อมูล");
+      Swal.fire({ icon: "error", title: "เกิดข้อผิดพลาดในการลบข้อมูล" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleFieldChange(id: string, value: string) {
     setFields(prev => computeFields({ ...prev, [id]: value }, fiscalYear, month));
   }
@@ -575,6 +720,33 @@ export default function HomePage() {
       <p className="mt-2 text-[11px] text-amber-800 bg-amber-50 border border-dashed border-amber-200 rounded-lg px-3 py-2">
         {hint || "คำนวณอัตโนมัติจากข้อมูลในหัวข้อเดียวกัน"}
       </p>
+    );
+  }
+
+  function renderRecordTable(record: QARecordView) {
+    return (
+      <div className="space-y-4">
+        {SECTION_CONFIG.map(section => (
+          <div key={section.key} className="border border-slate-200 rounded-xl overflow-hidden">
+            <div className="bg-slate-50 px-4 py-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <span>{section.icon}</span>
+              <span>{section.title}</span>
+              {section.icuOnly && <span className="ml-auto text-[11px] text-blue-600">ICU เท่านั้น</span>}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-slate-200">
+              {section.fields.map(fid => (
+                <div key={fid} className="bg-white px-4 py-3">
+                  <div className="text-[11px] text-slate-500">{FIELD_PREFIX[fid]}</div>
+                  <div className="text-xs font-semibold text-slate-800">{FIELD_LABELS[fid]}</div>
+                  <div className="text-sm text-indigo-700 font-mono mt-1">
+                    {record.data[fid] ?? "-"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     );
   }
 
@@ -781,9 +953,173 @@ export default function HomePage() {
 
       <main className="flex-1 max-w-6xl mx-auto px-4 py-6 space-y-5 w-full">
         {activeTab === "table" ? (
-          <section className="bg-white rounded-xl shadow-sm p-6 text-center text-sm text-slate-500 border border-dashed border-slate-200">
-            ตารางแสดงข้อมูล (coming soon)
-          </section>
+          <div className="space-y-4">
+            <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100 space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-800">ตารางแสดงข้อมูลรายเดือน</h2>
+                  <p className="text-xs text-slate-500">เลือกปีงบประมาณและเดือนเพื่อดูข้อมูลที่บันทึกไว้</p>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  ข้อมูลจะโหลดจากการบันทึกจริง
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-slate-600">ปีงบประมาณ (พ.ศ.)</label>
+                  <select
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={fiscalYear}
+                    onChange={e => setFiscalYear(e.target.value)}
+                  >
+                    {FISCAL_YEARS.map(y => (
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-slate-600">เดือน</label>
+                  <select
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={month}
+                    onChange={e => setMonth(e.target.value)}
+                  >
+                    {MONTHS_TH.map(m => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col md:flex-row items-stretch md:items-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleLoadTableRecord}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-500 text-white text-sm font-semibold shadow hover:shadow-md"
+                  >
+                    📄 โหลดข้อมูลแสดงผล
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLoadYear}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200"
+                  >
+                    🔄 อัปเดตสถานะรายปี
+                  </button>
+                </div>
+              </div>
+              {loading && <p className="text-[11px] text-slate-500">กำลังดำเนินการ...</p>}
+            </section>
+
+            {tableRecord ? (
+              <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100 space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-800">ข้อมูลเดือน {tableRecord.month}</h3>
+                    <p className="text-xs text-slate-500">อัปเดตล่าสุด: {new Date(tableRecord.updatedAt).toLocaleString()}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={handleEditFromTable}
+                      className="px-4 py-2 rounded-lg bg-amber-100 text-amber-800 text-sm font-semibold border border-amber-200 hover:bg-amber-200"
+                    >
+                      ✏️ แก้ไขข้อมูลนี้
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDeleteRecord}
+                      className="px-4 py-2 rounded-lg bg-rose-50 text-rose-700 text-sm font-semibold border border-rose-200 hover:bg-rose-100"
+                    >
+                      🗑️ ลบข้อมูล
+                    </button>
+                  </div>
+                </div>
+                {renderRecordTable(tableRecord)}
+              </section>
+            ) : (
+              <section className="bg-white rounded-2xl shadow-sm p-6 border border-dashed border-slate-200 text-center text-sm text-slate-500">
+                ยังไม่มีข้อมูลให้แสดง กรุณาเลือกปี/เดือน แล้วกด "โหลดข้อมูลแสดงผล"
+              </section>
+            )}
+
+            <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">📊</div>
+                <div>
+                  <h3 className="text-base font-semibold text-slate-800">Dashboard Analyze</h3>
+                  <p className="text-xs text-slate-500">สรุปตัวชี้วัดสำคัญจากข้อมูลที่บันทึกในปีงบประมาณ {fiscalYear}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="bg-indigo-50 text-indigo-700 rounded-xl p-4 border border-indigo-100">
+                  <p className="text-xs font-semibold">จำนวนเดือนที่มีข้อมูล</p>
+                  <div className="text-2xl font-bold">{analytics.monthsFilled} / 12</div>
+                  <p className="text-[11px] text-indigo-600">อัปเดตสถานะจากการบันทึก</p>
+                </div>
+                <div className="bg-emerald-50 text-emerald-700 rounded-xl p-4 border border-emerald-100">
+                  <p className="text-xs font-semibold">Average Productivity</p>
+                  <div className="text-2xl font-bold">{analytics.averageProductivity}</div>
+                  <p className="text-[11px] text-emerald-600">เป้าหมาย ≥ 80%</p>
+                </div>
+                <div className="bg-sky-50 text-sky-700 rounded-xl p-4 border border-sky-100">
+                  <p className="text-xs font-semibold">LOS เฉลี่ย (วัน)</p>
+                  <div className="text-2xl font-bold">{analytics.averageLOS}</div>
+                  <p className="text-[11px] text-sky-600">คำนวณจากระยะวันนอนเฉลี่ย</p>
+                </div>
+                <div className="bg-amber-50 text-amber-700 rounded-xl p-4 border border-amber-100">
+                  <p className="text-xs font-semibold">ความสำเร็จ CPR (ครั้ง)</p>
+                  <div className="text-2xl font-bold">{analytics.totalCPRSuccess}</div>
+                  <p className="text-[11px] text-amber-600">รวมเดือนที่มีข้อมูล</p>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-rose-50 text-rose-700 rounded-xl p-4 border border-rose-100">
+                  <p className="text-xs font-semibold">อัตราแผลกดทับเฉลี่ย</p>
+                  <div className="text-2xl font-bold">{analytics.pressureUlcerRateAvg}</div>
+                  <p className="text-[11px] text-rose-600">ต่อ 1,000 วันนอนกลุ่มเสี่ยง</p>
+                </div>
+                <div className="bg-slate-50 text-slate-700 rounded-xl p-4 border border-slate-200">
+                  <p className="text-xs font-semibold">หมายเหตุ</p>
+                  <div className="text-sm">แดชบอร์ดคำนวณจากข้อมูลที่บันทึกครบถ้วนในปีงบประมาณนั้น</div>
+                </div>
+              </div>
+            </section>
+
+            <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-slate-800">ไทม์ไลน์สถานะข้อมูลรายเดือน</h3>
+                <span className="text-[11px] text-slate-500">ปีงบประมาณ {fiscalYear}</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 text-[11px]">
+                {MONTHS_TH.map(m => {
+                  const rec = yearData[m];
+                  const hasData = !!rec;
+                  return (
+                    <div
+                      key={m}
+                      className={`rounded-lg border px-2.5 py-2 ${
+                        hasData ? "border-emerald-400 bg-emerald-50" : "border-amber-300 bg-amber-50"
+                      }`}
+                    >
+                      <div className="font-semibold text-slate-800 truncate">{m}</div>
+                      <div className="mt-0.5">
+                        {hasData ? (
+                          <span className="text-emerald-700">อัปเดต {new Date(rec.updatedAt).toLocaleDateString()}</span>
+                        ) : (
+                          <span className="text-amber-700">ยังไม่มีข้อมูล</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
         ) : (
           <>
             <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">

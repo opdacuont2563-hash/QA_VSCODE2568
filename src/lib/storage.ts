@@ -77,3 +77,17 @@ export function saveRecord(input: Omit<QARecord, "id" | "updatedAt"> & { id?: st
   writeStore(store);
   return record;
 }
+
+export function deleteRecord(departmentId: string, fiscalYear: string, month: string): boolean {
+  const store = readStore();
+  const nextRecords = store.records.filter(
+    rec => !(rec.departmentId === departmentId && rec.fiscalYear === fiscalYear && rec.month === month)
+  );
+
+  const changed = nextRecords.length !== store.records.length;
+  if (changed) {
+    writeStore({ records: nextRecords });
+  }
+
+  return changed;
+}

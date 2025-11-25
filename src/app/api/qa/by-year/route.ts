@@ -17,5 +17,5 @@ export async function GET(request: Request) {
     data[rec.month] = { id: rec.id, updatedAt: rec.updatedAt };
   }
 
-  return NextResponse.json({ success: true, data });
+  return NextResponse.json({ success: true, data, records });
 }
