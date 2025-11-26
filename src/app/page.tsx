@@ -4,6 +4,12 @@ import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import Swal from "@/app/utils/sweetalert";
 
+const SwalCustom = {
+  fire: Swal.fire,
+  showLoading: Swal.showLoading,
+  close: Swal.close,
+};
+
 /* ----------------------------- CONFIG พื้นฐาน ----------------------------- */
 
 type Role = "user" | "admin";
@@ -479,12 +485,12 @@ export default function HomePage() {
   }
 
   function showSweetLoading(message: string) {
-    Swal.fire({
+    SwalCustom.fire({
       title: message,
       allowOutsideClick: false,
       showConfirmButton: false,
       didOpen: () => {
-        Swal.showLoading();
+        SwalCustom.showLoading();
       },
       background: "#f8fafc",
       customClass: {
@@ -494,7 +500,7 @@ export default function HomePage() {
   }
 
   function showSweetSuccess(message: string) {
-    Swal.fire({
+    SwalCustom.fire({
       icon: "success",
       title: message,
       timer: 1800,
@@ -556,18 +562,18 @@ export default function HomePage() {
       const json = await res.json();
 
       if (!json.success) {
-        Swal.close();
+        SwalCustom.close();
         showAlert("error", json.message || "โหลดข้อมูลไม่สำเร็จ");
-        Swal.fire({ icon: "error", title: json.message || "โหลดข้อมูลไม่สำเร็จ" });
+        SwalCustom.fire({ icon: "error", title: json.message || "โหลดข้อมูลไม่สำเร็จ" });
         return;
       }
 
-      Swal.close();
+      SwalCustom.close();
 
       if (!json.record) {
         setFields(prev => computeFields(prev, fiscalYear, month));
         showAlert("warning", "ยังไม่มีข้อมูลเดือนนี้");
-        Swal.fire({
+        SwalCustom.fire({
           icon: "warning",
           title: "ยังไม่มีข้อมูลเดือนนี้",
           timer: 2000,
@@ -584,7 +590,7 @@ export default function HomePage() {
     } catch (err) {
       console.error(err);
       showAlert("error", "เกิดข้อผิดพลาดในการโหลดข้อมูล");
-      Swal.fire({ icon: "error", title: "เกิดข้อผิดพลาดในการโหลดข้อมูล" });
+      SwalCustom.fire({ icon: "error", title: "เกิดข้อผิดพลาดในการโหลดข้อมูล" });
     } finally {
       setLoading(false);
     }
@@ -604,12 +610,12 @@ export default function HomePage() {
       const res = await fetch(`/api/qa/by-period?${params}`);
       const json = await res.json();
 
-      Swal.close();
+      SwalCustom.close();
 
       if (!json.success || !json.record) {
         setTableRecord(null);
         showAlert("warning", json.message || "ไม่พบข้อมูลเดือนนี้");
-        Swal.fire({ icon: "warning", title: json.message || "ไม่พบข้อมูลเดือนนี้" });
+        SwalCustom.fire({ icon: "warning", title: json.message || "ไม่พบข้อมูลเดือนนี้" });
         return;
       }
 
@@ -620,7 +626,7 @@ export default function HomePage() {
     } catch (error) {
       console.error(error);
       showAlert("error", "เกิดข้อผิดพลาดในการโหลดข้อมูลแสดงผล");
-      Swal.fire({ icon: "error", title: "เกิดข้อผิดพลาดในการโหลดข้อมูลแสดงผล" });
+      SwalCustom.fire({ icon: "error", title: "เกิดข้อผิดพลาดในการโหลดข้อมูลแสดงผล" });
     } finally {
       setLoading(false);
     }
@@ -639,9 +645,9 @@ export default function HomePage() {
       const json = await res.json();
 
       if (!json.success) {
-        Swal.close();
+        SwalCustom.close();
         showAlert("error", json.message || "โหลดข้อมูลรายปีไม่สำเร็จ");
-        Swal.fire({ icon: "error", title: json.message || "โหลดข้อมูลรายปีไม่สำเร็จ" });
+        SwalCustom.fire({ icon: "error", title: json.message || "โหลดข้อมูลรายปีไม่สำเร็จ" });
         return;
       }
 
@@ -656,13 +662,13 @@ export default function HomePage() {
       setYearData(map);
       const records = (json.records as QARecordView[] | undefined) ?? [];
       setYearRecords(records.map(rec => ({ ...rec, data: computeFields(rec.data, rec.fiscalYear, rec.month) })));
-      Swal.close();
+      SwalCustom.close();
       showAlert("success", "อัปเดตสถานะรายปีสำเร็จ");
       showSweetSuccess("โหลดข้อมูลรายปีสำเร็จ");
     } catch (err) {
       console.error(err);
-      Swal.close();
-      Swal.fire({ icon: "error", title: "เกิดข้อผิดพลาดในการโหลดข้อมูลรายปี" });
+      SwalCustom.close();
+      SwalCustom.fire({ icon: "error", title: "เกิดข้อผิดพลาดในการโหลดข้อมูลรายปี" });
     }
   }
 
@@ -694,20 +700,20 @@ export default function HomePage() {
       const json = await res.json();
 
       if (!json.success) {
-        Swal.close();
+        SwalCustom.close();
         showAlert("error", json.message || "บันทึกข้อมูลไม่สำเร็จ");
-        Swal.fire({ icon: "error", title: json.message || "บันทึกข้อมูลไม่สำเร็จ" });
+        SwalCustom.fire({ icon: "error", title: json.message || "บันทึกข้อมูลไม่สำเร็จ" });
         return;
       }
 
-      Swal.close();
+      SwalCustom.close();
       showAlert("success", "บันทึกข้อมูลสำเร็จ");
       showSweetSuccess("บันทึกข้อมูลสำเร็จ");
       handleLoadYear();
     } catch (err) {
       console.error(err);
       showAlert("error", "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
-      Swal.fire({ icon: "error", title: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
+      SwalCustom.fire({ icon: "error", title: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
     } finally {
       setLoading(false);
     }
@@ -725,7 +731,7 @@ export default function HomePage() {
   async function handleDeleteRecord() {
     if (!currentDept || !tableRecord) return;
 
-    const confirm = await Swal.fire({
+    const confirm = await SwalCustom.fire({
       icon: "warning",
       title: "ยืนยันการลบข้อมูล",
       text: `ต้องการลบข้อมูลเดือน ${tableRecord.month} ปี ${tableRecord.fiscalYear} หรือไม่?`,
@@ -751,11 +757,11 @@ export default function HomePage() {
       });
 
       const json = await res.json();
-      Swal.close();
+      SwalCustom.close();
 
       if (!json.success) {
         showAlert("error", json.message || "ลบข้อมูลไม่สำเร็จ");
-        Swal.fire({ icon: "error", title: json.message || "ลบข้อมูลไม่สำเร็จ" });
+        SwalCustom.fire({ icon: "error", title: json.message || "ลบข้อมูลไม่สำเร็จ" });
         return;
       }
 
@@ -770,7 +776,7 @@ export default function HomePage() {
     } catch (error) {
       console.error(error);
       showAlert("error", "เกิดข้อผิดพลาดในการลบข้อมูล");
-      Swal.fire({ icon: "error", title: "เกิดข้อผิดพลาดในการลบข้อมูล" });
+      SwalCustom.fire({ icon: "error", title: "เกิดข้อผิดพลาดในการลบข้อมูล" });
     } finally {
       setLoading(false);
     }
