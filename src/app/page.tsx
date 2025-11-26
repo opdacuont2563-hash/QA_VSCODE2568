@@ -983,9 +983,9 @@ export default function HomePage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="text-right text-xs">
+            <div className="text-right text-sm">
               <div className="opacity-80">แผนก</div>
-              <div className="font-semibold truncate max-w-[200px]">{currentDept?.name}</div>
+              <div className="font-semibold">{currentDept?.name}</div>
             </div>
             <button
               onClick={handleLogout}
@@ -1212,7 +1212,7 @@ export default function HomePage() {
                 <h3 className="text-sm font-semibold text-slate-800">ไทม์ไลน์สถานะข้อมูลรายเดือน</h3>
                 <span className="text-[11px] text-slate-500">ปีงบประมาณ {fiscalYear}</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 text-[11px]">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
                 {MONTHS_TH.map(m => {
                   const rec = yearData[m];
                   const hasData = !!rec;
@@ -1223,7 +1223,7 @@ export default function HomePage() {
                         hasData ? "border-emerald-400 bg-emerald-50" : "border-amber-300 bg-amber-50"
                       }`}
                     >
-                      <div className="font-semibold text-slate-800 truncate">{m}</div>
+                      <div className="font-semibold text-slate-800">{m}</div>
                       <div className="mt-0.5">
                         {hasData ? (
                           <span className="text-emerald-700">อัปเดต {new Date(rec.updatedAt).toLocaleDateString()}</span>
@@ -1408,18 +1408,18 @@ export default function HomePage() {
                   </h2>
                   <span className="text-[10px] text-slate-500">ปีงบประมาณ {fiscalYear}</span>
                 </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 text-[11px]">
-                  {MONTHS_TH.map(m => {
-                    const rec = yearData[m];
-                    const hasData = !!rec;
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
+                {MONTHS_TH.map(m => {
+                  const rec = yearData[m];
+                  const hasData = !!rec;
                     return (
-                      <div
-                        key={m}
-                        className={`rounded-lg border px-2.5 py-2 ${
-                          hasData ? "border-emerald-400 bg-emerald-50" : "border-amber-300 bg-amber-50"
-                        }`}
-                      >
-                        <div className="font-semibold text-slate-800 truncate">{m}</div>
+                    <div
+                      key={m}
+                      className={`rounded-lg border px-2.5 py-2 ${
+                        hasData ? "border-emerald-400 bg-emerald-50" : "border-amber-300 bg-amber-50"
+                      }`}
+                    >
+                      <div className="font-semibold text-slate-800">{m}</div>
                         <div className="mt-0.5">
                           {hasData ? (
                             <span className="text-emerald-700">มีข้อมูลแล้ว</span>
@@ -1431,7 +1431,7 @@ export default function HomePage() {
                     );
                   })}
                 </div>
-                <p className="text-[10px] text-slate-500 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   * หลังบันทึกข้อมูล ระบบจะอัปเดตสถานะเดือนนั้นเป็น “มีข้อมูลแล้ว” ใช้เป็น checklist ให้แผนกเห็นภาพรวมทั้งปี
                 </p>
               </aside>
